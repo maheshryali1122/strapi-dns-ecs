@@ -82,14 +82,21 @@ resource "aws_instance" "ec2fornginx" {
   user_data = <<-EOF
     #!/bin/bash
     sudo apt-get update
-    sudo apt-get install -y nginx
+    sudo apt-get install -y nginx jq
+
+    CLUSTER_NAME="${aws_ecs_cluster.strapiecscluster.name}"
+    SERVICE_NAME="${aws_ecs_service.ecs_service_strapi.name}"
+    TASK_ARN=$(aws ecs list-tasks --cluster $CLUSTER_NAME --service-name $SERVICE_NAME --query 'taskArns[0]' --output text --region ${var.aws_region})
+    ENI_ID=$(aws ecs describe-tasks --cluster $CLUSTER_NAME --tasks $TASK_ARN --query 'tasks[0].attachments[0].details[?name==`networkInterfaceId`].value' --output text --region ${var.aws_region})
+    PUBLIC_IP=$(aws ec2 describe-network-interfaces --network-interface-ids $ENI_ID --query 'NetworkInterfaces[0].Association.PublicIp' --output text --region ${var.aws_region})
+
     cat <<EOT > /etc/nginx/sites-available/strapi
     server {
         listen 80;
         server_name maheshr.contentecho.in;
 
         location / {
-            proxy_pass http://${data.external.get_task_public_ip.result["public_ip"]}:1337;
+            proxy_pass http://$PUBLIC_IP:1337;
             proxy_set_header Host \$host;
             proxy_set_header X-Real-IP \$remote_addr;
             proxy_set_header X-Forwarded-For \$proxy_add_x_forwarded_for;
@@ -97,10 +104,10 @@ resource "aws_instance" "ec2fornginx" {
         }
     }
     EOT
+
     sudo ln -s /etc/nginx/sites-available/strapi /etc/nginx/sites-enabled/
     sudo rm /etc/nginx/sites-enabled/default
     sudo systemctl restart nginx
     EOF
-
 }
 
