@@ -37,7 +37,7 @@ resource "tls_private_key" "fornginx" {
   }
 }
 resource "aws_key_pair" "keypairfornginx" {
-  key_name   = "keyforstrapi"
+  key_name   = "keyforstrapi-rm"
   public_key = tls_private_key.fornginx.public_key_openssh
   depends_on = [ tls_private_key.fornginx ]
   lifecycle {
