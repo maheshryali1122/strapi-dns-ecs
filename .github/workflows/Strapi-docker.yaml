@@ -1,4 +1,4 @@
-name: Terraform AWS Workflow
+name: Terraform AWS Workflow for strapi
 
 on:
   push:
